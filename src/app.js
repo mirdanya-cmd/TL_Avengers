@@ -4,6 +4,8 @@ const app = document.querySelector("#app");
 const fmt = new Intl.NumberFormat("ru-RU");
 const roles = ["Урон", "Поддержка", "Фронтлайн"];
 const analysisWindow = 10;
+const SIDEBAR_STATE_KEY = "avengers-sidebar-collapsed";
+const REVIEW_STATE_KEY = "avengers-review-collapsed";
 
 function matchTimestamp(game) {
   const [day, month, year] = game.date.split(".").map(Number);
@@ -286,10 +288,15 @@ function linkPlayer(player) {
   return `#/player/${encodeURIComponent(player.name)}/${encodeURIComponent(player.loadout)}`;
 }
 
+function panelIsCollapsed(key) {
+  return typeof localStorage !== "undefined" && localStorage.getItem(key) === "true";
+}
+
 function layout(content, section) {
   return `
-    <div class="shell">
+    <div class="shell ${section === "analytics" ? "analytics-shell" : ""} ${panelIsCollapsed(SIDEBAR_STATE_KEY) ? "sidebar-collapsed" : ""}">
       <aside class="sidebar">
+        <button id="sidebar-toggle" class="panel-toggle sidebar-toggle" type="button" aria-label="Скрыть меню" aria-expanded="true"><span aria-hidden="true">‹</span></button>
         <a class="brand" href="#/overview">
           <span class="brand-mark">A</span>
           <span><strong>AVENGERS</strong><small>Battle Intelligence</small></span>
@@ -541,12 +548,15 @@ function analyticsPage() {
           ${loadoutIcons(item.loadout)}<strong>${item.loadout}</strong><small>${item.players.length} игроков · ${item.avgKills.toFixed(1).replace(".", ",")} килла ср.</small>
         </button>`).join("")}
       </div>
-      <div class="review-layout">
+      <div class="review-layout ${panelIsCollapsed(REVIEW_STATE_KEY) ? "review-collapsed" : ""}">
         <div class="evaluation-scroll"><table class="evaluation-table">
           <thead><tr>${sortableHeading("name", "Игрок / класс")}${sortableHeading("vsAverage", "vs среднее / топ-1")}${sortableHeading("signal", "Сигнал")}${sortableHeading("role", "Роль")}${sortableHeading("avgKills", "Киллы<br>ср.")}${sortableHeading("avgAssists", "Помощь<br>ср.")}${sortableHeading("avgDamage", "Урон<br>ср.")}${sortableHeading("avgTaken", "Получено<br>ср.")}${sortableHeading("avgHealing", "Отхил<br>ср.")}${sortableHeading("classIndex", "Индекс")}</tr></thead>
           <tbody id="evaluation-body"></tbody>
         </table></div>
-        <aside class="review-panel"><div class="review-head"><h3>Кандидаты на разбор</h3><p>Минимальный относительный вклад в выбранной группе.</p></div><div id="review-candidates"></div></aside>
+        <aside class="review-panel">
+          <button id="review-toggle" class="panel-toggle review-toggle" type="button" aria-label="Скрыть кандидатов на разбор" aria-expanded="true"><span aria-hidden="true">›</span></button>
+          <div class="review-content"><div class="review-head"><h3>Кандидаты на разбор</h3><p>Минимальный относительный вклад в выбранной группе.</p></div><div id="review-candidates"></div></div>
+        </aside>
       </div>
     </section>
     <section class="panel analysis-table">
@@ -711,6 +721,38 @@ function bindAnalyticsFilters() {
   renderEvaluation();
 }
 
+function bindPanelToggles() {
+  const shell = document.querySelector(".shell");
+  const sidebarToggle = document.querySelector("#sidebar-toggle");
+  if (!shell || !sidebarToggle) return;
+
+  const setSidebarState = (collapsed) => {
+    shell.classList.toggle("sidebar-collapsed", collapsed);
+    sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+    sidebarToggle.setAttribute("aria-label", collapsed ? "Показать меню" : "Скрыть меню");
+    sidebarToggle.querySelector("span").textContent = collapsed ? "›" : "‹";
+    localStorage.setItem(SIDEBAR_STATE_KEY, String(collapsed));
+  };
+
+  setSidebarState(localStorage.getItem(SIDEBAR_STATE_KEY) === "true");
+  sidebarToggle.addEventListener("click", () => setSidebarState(!shell.classList.contains("sidebar-collapsed")));
+
+  const reviewLayout = document.querySelector(".review-layout");
+  const reviewToggle = document.querySelector("#review-toggle");
+  if (!reviewLayout || !reviewToggle) return;
+
+  const setReviewState = (collapsed) => {
+    reviewLayout.classList.toggle("review-collapsed", collapsed);
+    reviewToggle.setAttribute("aria-expanded", String(!collapsed));
+    reviewToggle.setAttribute("aria-label", collapsed ? "Показать кандидатов на разбор" : "Скрыть кандидатов на разбор");
+    reviewToggle.querySelector("span").textContent = collapsed ? "‹" : "›";
+    localStorage.setItem(REVIEW_STATE_KEY, String(collapsed));
+  };
+
+  setReviewState(localStorage.getItem(REVIEW_STATE_KEY) === "true");
+  reviewToggle.addEventListener("click", () => setReviewState(!reviewLayout.classList.contains("review-collapsed")));
+}
+
 function downloadText(text, filename) {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
@@ -775,6 +817,7 @@ function render() {
   else if (route[0] === "player") app.innerHTML = playerPage(decodeURIComponent(route[1] ?? ""), route[2] ? decodeURIComponent(route[2]) : "");
   else if (route[0] === "imports") app.innerHTML = importsPage();
   else app.innerHTML = overview();
+  bindPanelToggles();
   bindMatchFilters(selectedMatch);
   bindRosterFilters();
   bindAnalyticsFilters();
