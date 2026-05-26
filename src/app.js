@@ -246,6 +246,20 @@ function reviewCandidates(players) {
   }).join("");
 }
 
+function analyticsSortValue(player, key) {
+  if (key === "name") return player.name.toLocaleLowerCase("ru");
+  if (key === "role") return player.role;
+  if (key === "signal") {
+    const rank = { risk: 0, watch: 1, steady: 2, strong: 3, neutral: 4 };
+    return rank[attentionSignal(player).tone] ?? 4;
+  }
+  return player[key];
+}
+
+function sortableHeading(key, label) {
+  return `<th data-sort-column="${key}"><button type="button" class="table-sort" data-sort="${key}">${label}<span class="sort-marker" aria-hidden="true"></span></button></th>`;
+}
+
 function classBreakdown(players) {
   return Object.values(
     players.reduce((groups, player) => {
@@ -519,7 +533,6 @@ function analyticsPage() {
         <div><h2>Игроки относительно своего класса</h2><p>Выберите оружие и смотрите, кто отстает от ориентира класса.</p></div>
         <div class="controls">
           <input id="analysis-search" type="search" placeholder="Имя игрока" />
-          <select id="analysis-sort" aria-label="Сортировка оценки"><option value="weak">Слабые сверху</option><option value="top">Лучшие сверху</option><option value="kills">По киллам</option><option value="damage">По урону</option><option value="healing">По лечению</option></select>
         </div>
       </div>
       <div id="analysis-classes" class="weapon-filters">
@@ -530,7 +543,7 @@ function analyticsPage() {
       </div>
       <div class="review-layout">
         <div class="evaluation-scroll"><table class="evaluation-table">
-          <thead><tr><th>Игрок / класс</th><th>vs среднее / топ-1</th><th>Сигнал</th><th>Роль</th><th>Киллы<br>ср.</th><th>Помощь<br>ср.</th><th>Урон<br>ср.</th><th>Получено<br>ср.</th><th>Отхил<br>ср.</th><th>Индекс</th></tr></thead>
+          <thead><tr>${sortableHeading("name", "Игрок / класс")}${sortableHeading("vsAverage", "vs среднее / топ-1")}${sortableHeading("signal", "Сигнал")}${sortableHeading("role", "Роль")}${sortableHeading("avgKills", "Киллы<br>ср.")}${sortableHeading("avgAssists", "Помощь<br>ср.")}${sortableHeading("avgDamage", "Урон<br>ср.")}${sortableHeading("avgTaken", "Получено<br>ср.")}${sortableHeading("avgHealing", "Отхил<br>ср.")}${sortableHeading("classIndex", "Индекс")}</tr></thead>
           <tbody id="evaluation-body"></tbody>
         </table></div>
         <aside class="review-panel"><div class="review-head"><h3>Кандидаты на разбор</h3><p>Минимальный относительный вклад в выбранной группе.</p></div><div id="review-candidates"></div></aside>
@@ -647,23 +660,36 @@ function bindAnalyticsFilters() {
   const candidateList = document.querySelector("#review-candidates");
   const buttons = [...document.querySelectorAll(".weapon-filter")];
   const search = document.querySelector("#analysis-search");
-  const sortControl = document.querySelector("#analysis-sort");
-  if (!tableBody || !candidateList || !buttons.length || !search || !sortControl) return;
+  const sortButtons = [...document.querySelectorAll(".table-sort")];
+  if (!tableBody || !candidateList || !buttons.length || !search || !sortButtons.length) return;
 
   let selectedLoadout = "";
+  let sortKey = "classIndex";
+  let sortDirection = "asc";
+  const updateSortIndicators = () => {
+    sortButtons.forEach((button) => {
+      const active = button.dataset.sort === sortKey;
+      button.classList.toggle("active", active);
+      button.querySelector(".sort-marker").textContent = active ? (sortDirection === "asc" ? "↑" : "↓") : "";
+      button.closest("th").setAttribute("aria-sort", active ? (sortDirection === "asc" ? "ascending" : "descending") : "none");
+    });
+  };
   const renderEvaluation = () => {
     const query = search.value.trim().toLocaleLowerCase("ru");
     const players = ownRollingAnalytics.filter((player) => (!selectedLoadout || player.loadout === selectedLoadout)
       && (!query || player.name.toLocaleLowerCase("ru").includes(query)));
     const sorted = [...players].sort((a, b) => {
-      if (sortControl.value === "top") return b.classIndex - a.classIndex;
-      if (sortControl.value === "kills") return b.avgKills - a.avgKills;
-      if (sortControl.value === "damage") return b.avgDamage - a.avgDamage;
-      if (sortControl.value === "healing") return b.avgHealing - a.avgHealing;
-      return a.classIndex - b.classIndex;
+      const left = analyticsSortValue(a, sortKey);
+      const right = analyticsSortValue(b, sortKey);
+      const comparison = typeof left === "string"
+        ? left.localeCompare(right, "ru")
+        : left - right;
+      return (sortDirection === "asc" ? comparison : -comparison)
+        || a.name.localeCompare(b.name, "ru");
     });
     tableBody.innerHTML = sorted.map(evaluationRow).join("");
     candidateList.innerHTML = reviewCandidates(players);
+    updateSortIndicators();
   };
 
   buttons.forEach((button) => button.addEventListener("click", () => {
@@ -672,7 +698,16 @@ function bindAnalyticsFilters() {
     renderEvaluation();
   }));
   search.addEventListener("input", renderEvaluation);
-  sortControl.addEventListener("input", renderEvaluation);
+  sortButtons.forEach((button) => button.addEventListener("click", () => {
+    const nextKey = button.dataset.sort;
+    if (sortKey === nextKey) {
+      sortDirection = sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      sortKey = nextKey;
+      sortDirection = ["name", "role", "signal"].includes(nextKey) ? "asc" : "desc";
+    }
+    renderEvaluation();
+  }));
   renderEvaluation();
 }
 

@@ -936,6 +936,31 @@ tr:hover td {
   font-size: 10px;
 }
 
+.table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.table-sort:hover,
+.table-sort.active {
+  color: var(--text);
+}
+
+.sort-marker {
+  color: var(--gold-bright);
+  font-size: 12px;
+}
+
 .evaluation-table td {
   padding: 10px 9px;
   font-size: 12px;
