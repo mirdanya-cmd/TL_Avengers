@@ -73,9 +73,9 @@ function contribution(player, comparisonSide) {
     ? comparisonSide.filter((item) => role(item) === role(player))
     : ratingPool(player);
   const metrics = role(player) === "Поддержка"
-    ? [["healing", 0.55], ["assists", 0.3], ["damage", 0.15]]
+    ? [["healing", 1]]
     : role(player) === "Фронтлайн"
-      ? [["taken", 0.4], ["assists", 0.25], ["healing", 0.2], ["damage", 0.15]]
+      ? [["taken", 1]]
       : [["damage", 0.5], ["kills", 0.35], ["assists", 0.15]];
   return Math.round(metrics.reduce((score, [field, weight]) => score + percentile(player, field, pool) * weight, 0) * 100);
 }
@@ -90,9 +90,9 @@ function mean(players, field) {
 
 function roleAverageMetrics(roleName) {
   return roleName === "Поддержка"
-    ? [["avgHealing", 0.55], ["avgAssists", 0.3], ["avgDamage", 0.15]]
+    ? [["avgHealing", 1]]
     : roleName === "Фронтлайн"
-      ? [["avgTaken", 0.4], ["avgAssists", 0.25], ["avgHealing", 0.2], ["avgDamage", 0.15]]
+      ? [["avgTaken", 1]]
       : [["avgDamage", 0.5], ["avgKills", 0.35], ["avgAssists", 0.15]];
 }
 
@@ -513,7 +513,7 @@ function analyticsPage() {
       <article><small>Классов</small><strong>${classGroups.length}</strong><span>комбинаций оружия</span></article>
       <article class="${reviewCount ? "alert" : ""}"><small>Ниже нормы</small><strong>${reviewCount}</strong><span>индекс ниже среднего на 20%+</span></article>
     </section>
-    <section class="coverage method analysis-method"><strong>Методика</strong><span>Средние рассчитаны по последним ${recentMatches.length} из ${analysisWindow} возможных варгеймов. Индекс = 100 на среднем игроке того же класса: урон оценивается по урону/киллам/помощи, поддержка по лечению/помощи/урону, фронтлайн по полученному урону/помощи/лечению/урону. Смертей нет, поэтому фронтлайн показывает принятую нагрузку, а не качество выживания.</span></section>
+    <section class="coverage method analysis-method"><strong>Методика</strong><span>Средние рассчитаны по последним ${recentMatches.length} из ${analysisWindow} возможных варгеймов. Индекс = 100 на среднем игроке того же класса: урон оценивается по урону/киллам/помощи, поддержка только по отхилу, фронтлайн только по полученному урону. Смертей нет, поэтому фронтлайн показывает принятую нагрузку, а не качество выживания.</span></section>
     <section class="panel analysis-workbench">
       <div class="panel-head responsive">
         <div><h2>Игроки относительно своего класса</h2><p>Выберите оружие и смотрите, кто отстает от ориентира класса.</p></div>
